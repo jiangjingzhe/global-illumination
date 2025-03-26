@@ -11,18 +11,18 @@ Given a scene description that specifies the location of surfaces in a scene, th
 ![rendering-equation](./graph/rendering-equation.bmp)
 **方程含义**
 
-1.$L(P \rightarrow D_v)$：计算从点$P$沿观察方向$D_v$的光亮度。\
-2.$L_e(P \rightarrow D_v)$：如果$P$是光源，则直接贡献自发光。\
-3.积分项：计算所有可能的入射光$𝐷_𝑖$对$𝑃$的贡献：\
+1.$`L(P \rightarrow D_v)`$：计算从点$`P`$沿观察方向$`D_v`$的光亮度。\
+2.$`L_e(P \rightarrow D_v)`$：如果$`P`$是光源，则直接贡献自发光。\
+3.积分项：计算所有可能的入射光$`𝐷_𝑖`$对$`𝑃`$的贡献：\
 - BRDF($F_s$): 决定多少入射光被反射到$Dv$.
 - $(cosθ)$: 入射角度越大，贡献越小（类似斜照光变暗）。
 - 递归的$L(Y_i\rightarrow -D_i)$: 入射光本身可能是其他点的反射光（全局光照）。
 ### 蒙特卡洛积分
 可以从渲染方程中看出，最关键的部分是在半球面上积分的部分，入射方向可以有无穷多个，并且该积分很难找到解析解，我们需要一种方法能够用有限次的计算近似替代无限的积分结果，这就需要用到统计学的知识。\
 **蒙特卡洛积分公式**
-$$
+```math
 \int_a^b f(x)dx \approx \frac{1}{N} \sum_{k=1}^N \frac{f(X_k)}{p(X_k)}, \quad X_k \sim p(x)
-$$
+```
 其中：
 - $p(x)$是采样概率密度函数(PDF)。
 - $X_k$是从$p(x)$中抽取的随机样本。
