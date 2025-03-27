@@ -13,7 +13,7 @@ Given a scene description that specifies the location of surfaces in a scene, th
 
 1.$`L(P \rightarrow D_v)`$：计算从点$`P`$沿观察方向$`D_v`$的光亮度。\
 2.$`L_e(P \rightarrow D_v)`$：如果$`P`$是光源，则直接贡献自发光。\
-3.积分项：计算所有可能的入射光$`𝐷_𝑖`$对$`𝑃`$的贡献：\
+3.积分项：计算所有可能的入射光$`𝐷_𝑖`$对$`𝑃`$的贡献：
 - BRDF($`F_s`$): 决定多少入射光被反射到$`Dv`$.
 - $`(cosθ)`$: 入射角度越大，贡献越小（类似斜照光变暗）。
 - 递归的$`L(Y_i\rightarrow -D_i)`$: 入射光本身可能是其他点的反射光（全局光照）。
@@ -83,6 +83,50 @@ shade(p,Dv)
     Else If ray r hit an object at q
         return shade(y,-Di) * f_r * cosin / pdf(Di) / P_RR
 ```
+## 走样与反走样(aliasing/anti-aliasing)
+图形信号是连续的，而用来显示的系统却是一个个离散的像素，这种用离散的量（像素）表示连续的量（几何线段、多边形等图形）而引起的失真，叫作走样（aliasing）。走样是数字化过程的必然产物。用于减少或消除走样的技术，称为反走样（anti-aliasing）。
+
+### Super-Sampling Anti-Aliasing
+反走样的方法有：
+
+1.提高分辨率。SSAA（Super-Sampling Anti-Aliasing）\
+2.非加权区域采样。MSAA（Multi-Sampling Anti-Aliasing）\
+3.加权区域采样。
+
+我们使用的是**超级采样（SSAA）**
+```c++
+for (int y = 0; y < H; y++) {
+    for (int x = 0; x < W; x++) {
+        Vec color = Vec(); // 初始化像素颜色
+        for (int sy = 0; sy < 2; sy++) {       // 子像素行（2x2 超级采样）
+            for (int sx = 0; sx < 2; sx++) {   // 子像素列
+                Vec accumulated_color = Vec();
+                for (int s = 0; s < samples; s++) {
+                    // 在像素内随机采样（抗锯齿关键）
+                    double r1 = 2 * rand(), r2 = 2 * rand();
+                    double dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+                    double dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+                    Vec d = cx * (((sx + 0.5 + dx) / 2 + x) / W - 0.5) +
+                            cy * (((sy + 0.5 + dy) / 2 + y) / H - 0.5) + cam.d;
+                    accumulated_color += radiance(Ray(cam.o + d * 140, d.norm()), 0);
+                }
+                color += accumulated_color / samples;
+            }
+        }
+        img[y * W + x] = color / 4; // 平均 4 个子像素
+    }
+}
+```
+我们将每个像素分成 4 个子像素，在子像素内进一步随机采样$`（dx, dy）`$，避免规则走样。通过 samples 次采样求平均，进一步平滑噪声和锯齿。
+![sample](./graph/sample.bmp)
+### tent filter
+我们并没有使用均匀采样，这是因为均匀采样样本可能过于聚集或稀疏，导致 方差（噪声）较大。在 Monte Carlo 积分中，高方差意味着需要更多样本才能收敛。\
+*那我们该用什么样的方式来采样呢？*
+- 理论上最好的antialiasing方法是sinc filter，因为sinc filter可以完美的去除所有高于Nyquist frequency的频率，并保留lower ones，所以我们的目标是尽可能的接近sinc filter的波形，以达到完美的antialiasing效果。
+
+![tent filter](./graph/tent%20filter.bmp)
+![filter](./graph/antialiasing.png)
+
 ## 代码解读
 ### 数据结构
 #### Vec3d
