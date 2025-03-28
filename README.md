@@ -83,6 +83,16 @@ shade(p,Dv)
     Else If ray r hit an object at q
         return shade(y,-Di) * f_r * cosin / pdf(Di) / P_RR
 ```
+### 伽马矫正
+通过路径追踪算法计算得到的值为一系列没有边界的颜色值，我们需要将其转化为人眼能够感知到的亮度，将颜色值转入 0 到 255 之间，在这里使用的伽马值为 2.2，计算公式为$`c^{1/2.2}*255+0.5`$。
+```c++
+inline double clamp(double x) {
+    return x < 0 ? 0 : x > 1 ? 1 : x;
+}
+inline int toInt(double x) { 
+    return int(pow(clamp(x), 1 / 2.2) * 255 + 0.5); 
+}
+```
 ## 走样与反走样(aliasing/anti-aliasing)
 图形信号是连续的，而用来显示的系统却是一个个离散的像素，这种用离散的量（像素）表示连续的量（几何线段、多边形等图形）而引起的失真，叫作走样（aliasing）。走样是数字化过程的必然产物。用于减少或消除走样的技术，称为反走样（anti-aliasing）。
 
@@ -218,3 +228,147 @@ struct Sphere
 ```
 下面是判断光线与球体是否相交的方法
 ![sphere Intersection](./graph/spher%20Intersection.bmp)
+### 不同材质的反射与实现
+#### 漫反射(DIFF)
+```c++
+if (obj.refl == DIFF) {
+		double phi = 2 * M_PI*random();
+		double r2 = random();
+		double sinTheta = sqrt(r2);
+		double cosTheta = sqrt(1 - r2);
+		vec3 u = normalize(cross(fabs(w.x) > .1 ? vec3(0, 1, 0) : vec3(1, 0, 0), w));
+		vec3 v = cross(w, u);
+		vec3 d = normalize(u*cos(phi)*sinTheta + v * sin(phi)*sinTheta + w * cosTheta);
+		return obj.e + albedo*radiance(Ray(x, d), depth);
+	}
+```
+**实现原理：**
+
+1. 使用余弦加权半球采样生成随机方向
+    - $`r1`$是方位角(0-2π)，$`r2`$是极角(通过逆变换采样实现余弦加权)
+2. 构建局部坐标系：
+    - $`w`$是法线方向
+    - $`u`$和$`v`$是切平面上的基向量
+3. 组合得到新方向$`d`$：
+    - 水平分量：$`u*cos(phi)*sinTheta + v*sin(phi)*sinTheta`$
+    - 垂直分量：$`w*cosTheta`$
+4. 递归计算新光线的radiance，并与albedo（反射率）相乘
+
+为什么不需要显式除以PDF？
+对于渲染方程中的积分项：
+```math
+Lo = Le + ∫ fr * Li * cosθ dω
+```
+使用蒙特卡洛估计时:
+```math
+≈ Le + (fr * Li * cosθ) / pdf
+```
+对于理想的漫反射，我们有：
+```math
+fr = albedo/π \\
+pdf = cosθ/π \\
+ (fr * cosθ)/pdf = (albedo/π * cosθ)/(cosθ/π) = albedo
+```
+所以最终权重就是albedo，不需要额外计算。
+#### 镜面反射(SPEC)
+```c++
+else if (obj.refl == SPEC)
+    return obj.e + f.mult(radiance(Ray(x, r.d - n * 2 * n.dot(r.d)), depth, Xi));
+```
+理想的镜面反射就非常简单了，直接跟据反射公式：$`r.d - n * 2 * n.dot(r.d)`$计算即可。
+#### 折射(REFR)
+```c++
+	Ray reflRay(x, r.d - n * 2 * dot(n,r.d)); 
+	bool into = dot(n,nl) > 0;  
+	double nc = 1;
+	double nt = 1.5;
+	double nnt = into ? nc / nt : nt / nc;
+	double cosTheta = dot(r.d, nl);
+	double cosTheta2Sqr;
+
+	if ((cosTheta2Sqr = 1 - nnt * nnt*(1 - cosTheta * cosTheta)) < 0)    
+		return obj.e + albedo*radiance(reflRay, depth);
+
+	vec3 tdir = normalize(r.d*nnt - n * ((into ? 1 : -1)*(cosTheta*cosTheta + sqrt(cosTheta2Sqr))));
+	double a = nt - nc;
+	double b = nt + nc;
+	double R0 = a * a / (b*b);
+	double cosTheta2 = dot(tdir, n);
+	double c = 1 - (into ? -cosTheta : cosTheta2);
+	double Re = R0 + (1 - R0)*c*c*c*c*c; 
+	double Tr = 1 - Re;
+	double P = .25 + .5*Re;
+	double RP = Re / P;
+	double TP = Tr / (1 - P);
+
+	if (depth < 3)
+	{
+		return obj.e + albedo*(radiance(reflRay, depth)*Re + radiance(Ray(x, tdir), depth)*Tr); 
+	}
+	else
+	{
+		if (random() < P)
+			return obj.e + albedo * radiance(reflRay, depth)*RP; 
+		else
+			return obj.e + albedo * radiance(Ray(x, tdir), depth)*TP; 
+	}
+```
+首先我们判断光线是从介质外部进入还是内部射出，折射率比nnt会根据光线方向自动调整。
+
+根据Snell定律：$`sinθ₂ = (η₁/η₂)sinθ₁`$
+
+当$`(η₁/η₂)sinθ₁ > 1`$时发生全内反射
+
+通过$`cosTheta2Sqr = 1 - nnt²(1-cosθ₁²)`$计算，若结果为负则发生全内反射。
+
+**菲涅尔反射计算**
+
+菲涅尔方程描述了光线在两种介质交界处的反射率与入射角的关系。完整菲涅尔方程较复杂，代码中使用的是Schlick近似（1994年提出），它在保证物理合理性的同时大幅简化计算：
+```math
+R(θ)=R_0 +(1−R_0)(1−cosθ)^5
+```
+其中
+- $`R_0`$ 是垂直入射（$`θ=0°`$）时的基础反射率
+- $`θ `$是入射角（光线与法线的夹角）
+- $`(1−cosθ)^5`$模拟反射率随入射角增大的变化
+```c++
+double a = nt - nc;       // 折射率差值 (nt=1.5, nc=1.0)
+double b = nt + nc;       // 折射率和
+double R0 = a * a / (b * b); // R0 = ((nt-nc)/(nt+nc))^2
+```
+跟据物理定律：
+```math
+R_0 = \left( \frac{n_1 - n_2}{n_1 + n_2} \right)^2
+```
+跟据能量守恒：
+```math
+反射率 
+R_e + 透射率 T_r = 1
+```
+通过上面公式我们可以轻松计算出折射的过程。
+
+**俄罗斯轮盘赌优化**
+```c++
+double P = 0.25 + 0.5 * Re; // 反射的采样概率
+double RP = Re / P;          // 反射权重补偿
+double TP = Tr / (1 - P);    // 折射权重补偿
+```
+跟据前面路径追踪所讲，避免深层递归时同时计算反射和折射，改用概率选择一条路径。
+- 基础概率 0.25 确保即使 $`R_e`$ 很低时仍有机会采样反射。
+- 0.5 * $`R_e`$ 动态调整概率，反射率越高，采样反射的概率越大。
+
+通过除以各自对应的概率，保持蒙特卡洛估计的无偏性。
+
+浅层递归时同时计算反射和折射路径，避免早期截断导致噪声：
+```c++
+return obj.e + albedo * (radiance(reflRay) * Re + radiance(refrRay) * Tr);
+```
+深层递归时随机选择一条路径，提升性能：
+```c++
+if (random() < P) 
+    return obj.e + albedo * radiance(reflRay) * RP; // 反射
+else 
+    return obj.e + albedo * radiance(refrRay) * TP; // 折射
+```
+
+## 效果展示
