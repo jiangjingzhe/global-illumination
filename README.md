@@ -372,3 +372,7 @@ else
 ```
 
 ## 效果展示
+![i1](./graph/caustic.png)
+![i2](./graph/caustic3.png)
+![i3](./graph/simple.png)
+![i4](./graph/complex.png)
