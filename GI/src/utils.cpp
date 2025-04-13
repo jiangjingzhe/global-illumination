@@ -1,5 +1,5 @@
 #include "utils.h"
-#include <cstdint>
+#include "stdlib.h"
 #include <math.h>
 
 double clamp(double x) { 

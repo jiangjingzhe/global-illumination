@@ -24,7 +24,7 @@ void init_scene() {
 bool scene_intersect(const Ray &r, double &t, int &id) {
     double d, inf = t = 1e20;
     for (int i = num_spheres; i--;) {
-        if ((d = spheres[i].intersect(r)) && d < t) {
+        if ((d = spheres[i].intersect(r))>1e-4 && d < t) {
             t = d;
             id = i;
         }

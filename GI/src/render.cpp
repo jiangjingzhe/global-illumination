@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <omp.h>
 
 // 核心路径追踪函数
 Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
@@ -97,10 +98,10 @@ void render_image(Vec* c, int w, int h, int samps) {
     Vec cx = Vec(w * 0.5135 / h); // 水平方向向量
     Vec cy = (cx % cam.d).norm() * 0.5135; // 垂直方向向量
 
-    // 多线程渲染提示
     fprintf(stderr, "\nRendering %dx%d (samples=%d)\n", w, h, samps*4);
 
     // 主渲染循环
+    #pragma omp parallel for schedule(dynamic, 1)
     for (int y = 0; y < h; y++) { 
         fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps*4, 100.*y/(h-1));
         
