@@ -1,0 +1,3 @@
+D:/Coding/Github/global-illumination/GI/build/CMakeFiles/GI.dir
+D:/Coding/Github/global-illumination/GI/build/CMakeFiles/edit_cache.dir
+D:/Coding/Github/global-illumination/GI/build/CMakeFiles/rebuild_cache.dir

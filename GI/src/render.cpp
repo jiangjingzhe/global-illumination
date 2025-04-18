@@ -91,19 +91,17 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
     }
 }
 
-// 渲染主循环
-void render_image(Vec* c, int w, int h, int samps) {
-    // 相机参数
-    Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm());
-    Vec cx = Vec(w * 0.5135 / h); // 水平方向向量
-    Vec cy = (cx % cam.d).norm() * 0.5135; // 垂直方向向量
+// 渲染函数
+void render_image(Vec* c, int w, int h, int samps, const Camera& cam) {
+    Vec cx = Vec(w * 0.5135 / h);
+    Vec cy = (cx % cam.front).norm() * 0.5135;
+    Vec camPos = cam.position;
 
-    fprintf(stderr, "\nRendering %dx%d (samples=%d)\n", w, h, samps*4);
-
-    // 主渲染循环
     #pragma omp parallel for schedule(dynamic, 1)
-    for (int y = 0; y < h; y++) { 
-        fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps*4, 100.*y/(h-1));
+
+    //主渲染循环
+    for (int y = 0; y < h; y++) {
+        unsigned short Xi[3] = {0, 0, (unsigned short)(y*y*y)};
         
         // 行渲染循环
         for (unsigned short x = 0, Xi[3] = {0, 0, (unsigned short)(y*y*y)}; x < w; x++) {
@@ -123,10 +121,10 @@ void render_image(Vec* c, int w, int h, int samps) {
                         // 计算光线方向
                         Vec d = cx * (((sx + 0.5 + dx)/2 + x)/w - 0.5) +
                                cy * (((sy + 0.5 + dy)/2 + y)/h - 0.5) + 
-                               cam.d;
+                               cam.front;
                         
                         // 累积辐射量
-                        r = r + radiance(Ray(cam.o + d*140, d.norm()), 0, Xi) * (1.0/samps);
+                        r = r + radiance(Ray(camPos + d*140, d.norm()), 0, Xi) * (1.0/samps);
                     }
                     
                     // 将子像素结果写入缓冲区
