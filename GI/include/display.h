@@ -7,7 +7,8 @@ class Display {
 private:
     GLuint quadVAO, quadVBO; // 全屏四边形渲染所需
     GLuint shaderProgram;    // 着色器程序
-    
+    GLuint pbo;              // 像素缓冲对象
+
 public:
     GLFWwindow* window;
     GLuint renderTexture;
@@ -18,7 +19,7 @@ public:
     ~Display();
     void init_opengl();
     void setup_quad(); // 设置全屏四边形
-    void update_texture();
+    void update_texture(int totalSamples);
     void render_frame();
     
 private:

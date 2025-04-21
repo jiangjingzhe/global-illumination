@@ -10,7 +10,7 @@ public:
     double moveSpeed;
     double mouseSensitivity;
 
-    Camera(Vec pos = Vec(50, 52, 295.6), Vec dir = Vec(0, -0.042612, -1));
+    Camera(Vec pos = Vec(50, 52, 295.6), Vec dir = Vec(0, 0, -1));  // 原方向 Vec(0, -0.042612, -1)
     void update_vectors();
     void process_keyboard(int key, double deltaTime);
     void process_mouse(double xoffset, double yoffset);

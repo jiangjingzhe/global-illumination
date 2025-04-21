@@ -25,10 +25,18 @@ void main() {
 })";
 
 Display::Display(int width, int height) : w(width), h(height) {
-    framebuffer = new Vec[w*h]{};
+    std::cout << "Initializing display..." << std::endl;
+    framebuffer = new (std::nothrow) Vec[w*h]{};
+    if (!framebuffer) {
+        std::cerr << "Framebuffer allocation failed" << std::endl;
+        return;
+    }
     init_opengl();
+    std::cout << "OpenGL initialized" << std::endl;
     compile_shaders();
+    std::cout << "Shaders compiled" << std::endl;
     setup_quad();
+    std::cout << "Render quad setup" << std::endl;
 }
 
 Display::~Display() {
@@ -55,6 +63,11 @@ void Display::init_opengl() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    
+    glGenBuffers(1, &pbo);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
+    glBufferData(GL_PIXEL_UNPACK_BUFFER, w*h*3, NULL, GL_STREAM_DRAW);
 }
 
 void Display::compile_shaders() {
@@ -107,15 +120,31 @@ void Display::setup_quad() {
     glBindVertexArray(0);
 }
 
-void Display::update_texture() {
-    std::vector<unsigned char> pixels(w * h * 3);
+void Display::update_texture(int totalSamples) {
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
+    unsigned char* ptr = (unsigned char*)glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
+    
+    if (totalSamples <= 0) totalSamples = 1; // 避免除以零
+
+    #pragma omp parallel for
     for (int i = 0; i < w*h; ++i) {
-        pixels[i*3]   = toInt(framebuffer[i].x);
-        pixels[i*3+1] = toInt(framebuffer[i].y);
-        pixels[i*3+2] = toInt(framebuffer[i].z);
+        Vec color = framebuffer[i];
+        if (totalSamples > 0) {
+            color.x /= totalSamples;
+            color.y /= totalSamples;
+            color.z /= totalSamples;
+        }
+        ptr[i*3]   = toInt(color.x);
+        ptr[i*3+1] = toInt(color.y);
+        ptr[i*3+2] = toInt(color.z);
+        // if(ptr[i*3]>0 && ptr[i*3+1]>0 && ptr[i*3+2]>0)
+        //     printf("Pixel %d: (%d, %d, %d)\n", i, ptr[i*3], ptr[i*3+1], ptr[i*3+2]);
     }
+    
+    glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
     glBindTexture(GL_TEXTURE_2D, renderTexture);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
 void Display::render_frame() {

@@ -1,66 +1,98 @@
-#include "geometry.h"
+#include "display.h"
 #include "scene.h"
 #include "render.h"
-#include "utils.h"
-#include "display.h"
 #include "camera.h"
-
-#include <stdio.h>
-#include <stdlib.h>
+#include "utils.h"
+#include <GLFW/glfw3.h>
+#include <iostream>
 #include <string.h>
 
-Camera camera;
+//#pragma omp requires unified_shared_memory
+
+// 全局变量声明
+Camera camera(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm());
 Display* display;
-bool needReset = true;
+bool cameraMoved = false;
 double lastTime = 0;
 
+// 鼠标回调函数
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-    static double lastX = display->w/2, lastY = display->h/2;
+    static double lastX = display->w / 2.0, lastY = display->h / 2.0;
     double xoffset = xpos - lastX;
-    double yoffset = lastY - ypos;
+    double yoffset = lastY - ypos; // 反转Y轴方向
     lastX = xpos;
     lastY = ypos;
+
     camera.process_mouse(xoffset, yoffset);
-    needReset = true;
+    cameraMoved = true; // 标记相机移动
+}
+
+// 处理键盘输入
+void processInput(GLFWwindow* window, double deltaTime) {
+    bool moved = false;
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    // 处理相机移动
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        camera.process_keyboard(GLFW_KEY_W, deltaTime);
+        moved = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        camera.process_keyboard(GLFW_KEY_S, deltaTime);
+        moved = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        camera.process_keyboard(GLFW_KEY_A, deltaTime);
+        moved = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        camera.process_keyboard(GLFW_KEY_D, deltaTime);
+        moved = true;
+    }
+
+    if (moved) cameraMoved = true;
 }
 
 int main() {
+    // 初始化显示和场景
     display = new Display(512, 384);
     init_scene();
 
-    glfwSetCursorPosCallback(display->window, mouse_callback);
-    glfwSetInputMode(display->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // 设置输入回调
+    //glfwSetCursorPosCallback(display->window, mouse_callback);
+    //glfwSetInputMode(display->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+    int totalSamples = 0; // 累计采样次数
+    lastTime = glfwGetTime();
+
+    // 主循环
     while (!glfwWindowShouldClose(display->window)) {
         double currentTime = glfwGetTime();
         double deltaTime = currentTime - lastTime;
         lastTime = currentTime;
 
-        // 处理输入
-        if (glfwGetKey(display->window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            break;
-        if (glfwGetKey(display->window, GLFW_KEY_W) == GLFW_PRESS)
-            camera.process_keyboard(GLFW_KEY_W, deltaTime);
-        if (glfwGetKey(display->window, GLFW_KEY_S) == GLFW_PRESS)
-            camera.process_keyboard(GLFW_KEY_S, deltaTime);
-        if (glfwGetKey(display->window, GLFW_KEY_A) == GLFW_PRESS)
-            camera.process_keyboard(GLFW_KEY_A, deltaTime);
-        if (glfwGetKey(display->window, GLFW_KEY_D) == GLFW_PRESS)
-            camera.process_keyboard(GLFW_KEY_D, deltaTime);
+        processInput(display->window, deltaTime); // 处理输入
 
-        // 重置累积缓冲区
-        if(needReset) {
-            memset(display->framebuffer, 0, sizeof(Vec)*display->w*display->h);
-            needReset = false;
+        // 相机移动后重置缓冲区和采样计数
+        if (cameraMoved) {
+            memset(display->framebuffer, 0, sizeof(Vec) * display->w * display->h);
+            totalSamples = 0;
+            cameraMoved = false;
         }
 
-        // 渲染并显示
-        render_image(display->framebuffer, display->w, display->h, 100, camera);
-        display->update_texture();
+        // 渲染图像
+        const int SAMPLES_PER_FRAME = 4;
+        render_image(display->framebuffer, display->w, display->h, totalSamples, SAMPLES_PER_FRAME, camera);
+        
+        // 更新纹理并渲染帧
+        display->update_texture(totalSamples);
         display->render_frame();
-        glfwPollEvents();
+
+        glfwPollEvents(); // 处理事件
     }
 
-    delete display;
+    cleanup_scene(); 
+    delete display; // 清理资源
     return 0;
 }

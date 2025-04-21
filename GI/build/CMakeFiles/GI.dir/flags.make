@@ -7,11 +7,11 @@ C_DEFINES =
 
 C_INCLUDES = @CMakeFiles/GI.dir/includes_C.rsp
 
-C_FLAGS = 
+C_FLAGS = -O3 -march=native -ffast-math
 
 CXX_DEFINES = 
 
 CXX_INCLUDES = @CMakeFiles/GI.dir/includes_CXX.rsp
 
-CXX_FLAGS = -std=gnu++17 -fopenmp
+CXX_FLAGS = -std=gnu++17 -O3 -march=native -ffast-math -fopenmp
 
