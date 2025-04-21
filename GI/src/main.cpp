@@ -60,8 +60,8 @@ int main() {
     init_scene();
 
     // 设置输入回调
-    //glfwSetCursorPosCallback(display->window, mouse_callback);
-    //glfwSetInputMode(display->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(display->window, mouse_callback);
+    glfwSetInputMode(display->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     int totalSamples = 0; // 累计采样次数
     lastTime = glfwGetTime();

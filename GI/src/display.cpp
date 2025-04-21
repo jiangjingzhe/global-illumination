@@ -129,11 +129,8 @@ void Display::update_texture(int totalSamples) {
     #pragma omp parallel for
     for (int i = 0; i < w*h; ++i) {
         Vec color = framebuffer[i];
-        if (totalSamples > 0) {
-            color.x /= totalSamples;
-            color.y /= totalSamples;
-            color.z /= totalSamples;
-        }
+        if (totalSamples > 0) color = color / totalSamples;
+        
         ptr[i*3]   = toInt(color.x);
         ptr[i*3+1] = toInt(color.y);
         ptr[i*3+2] = toInt(color.z);
