@@ -3,7 +3,7 @@
 
 Camera::Camera(Vec pos, Vec dir) : 
     position(pos), front(dir.norm()), up(0,1,0), 
-    yaw(-M_PI/2), pitch(0), moveSpeed(2.5), mouseSensitivity(0.1) {
+    yaw(-M_PI/2), pitch(0), moveSpeed(2.5), mouseSensitivity(0.01) {
     update_vectors();
 }
 

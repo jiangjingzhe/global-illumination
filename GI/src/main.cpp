@@ -10,7 +10,7 @@
 //#pragma omp requires unified_shared_memory
 
 // 全局变量声明
-Camera camera(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm());
+Camera camera(Vec(50, 45, 295.6), Vec(0, -0.042612, -1).norm());
 Display* display;
 bool cameraMoved = false;
 double lastTime = 0;
@@ -56,7 +56,7 @@ void processInput(GLFWwindow* window, double deltaTime) {
 
 int main() {
     // 初始化显示和场景
-    display = new Display(512, 384);
+    display = new Display(1024, 768);
     init_scene();
 
     // 设置输入回调

@@ -138,7 +138,6 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
 void render_image(Vec* c, int w, int h, int &totalSamples, int addSamples, const Camera& cam) {
     Vec cx = Vec(w * 0.5135 / h , 0 , 0 );
     Vec cy = (cx % cam.front).norm() * 0.5135 ;
-    //Vec cy = (cx % cam.front).norm() * 0.5135;
     Vec camPos = cam.position;
 
     printf("Rendering %d samples...\n", totalSamples + addSamples);
@@ -153,9 +152,7 @@ void render_image(Vec* c, int w, int h, int &totalSamples, int addSamples, const
                 static_cast<unsigned short>(omp_get_thread_num())  // 增加线程标识
             };
             
-            Vec pixelColor = (totalSamples > 0) ? c[y*w+x] : Vec();
-            
-            // 增量采样循环
+            //Vec pixelColor = (totalSamples > 0) ? c[y*w+x] : Vec();
             
             // 生成抗锯齿采样坐标
             const double r1 = 2 * erand48(Xi);
@@ -168,16 +165,15 @@ void render_image(Vec* c, int w, int h, int &totalSamples, int addSamples, const
                 
             // 路径追踪计算
             Vec sample = radiance(Ray(camPos + rayDir*140, rayDir.norm()), 0, Xi);
-                
-            // 增量累积（Welford算法）
-            if (totalSamples == 0 )
-                pixelColor = sample;
-            else {                    
-                const double n = totalSamples + 1;
-                pixelColor = (pixelColor * (n-1) + sample) / n;
-            }
             
-            c[y*w+x] = pixelColor;
+            // 增量累积（Welford算法）
+            // if (totalSamples == 0 ) pixelColor = sample;
+            // else {                    
+            //     const double n = totalSamples + 1;
+            //     pixelColor = (pixelColor * (n-1) + sample) / n;
+            // }
+            
+            c[y*w+x] = c[y*w+x] + sample;
             //printf("\rPixel (\t%d, \t%d): (%f, %f, %f)", x, y, pixelColor.x, pixelColor.y, pixelColor.z);
         }
     }
