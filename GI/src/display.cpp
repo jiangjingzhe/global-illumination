@@ -79,7 +79,7 @@ void Display::compile_shaders() {
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
     glCompileShader(fragmentShader);
-
+    
     // 链接着色器程序
     shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);

@@ -5,8 +5,8 @@
 
 class Camera {
 public:
-    Vec position, front, up, right;
-    double yaw, pitch;
+    Vec position, front, up, right; // 相机位置、前向、上向、右向向量
+    double yaw, pitch; 
     double moveSpeed;
     double mouseSensitivity;
 

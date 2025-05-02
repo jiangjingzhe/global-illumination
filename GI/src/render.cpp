@@ -29,8 +29,6 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
     
     // 自发光贡献
     Vec emitted = (obj.e.x > 0 || obj.e.y > 0 || obj.e.z > 0) ? obj.e : Vec();
-    // if(emitted.x > 0 || emitted.y > 0 || emitted.z > 0) 
-    //     printf("Emitted color: (%f, %f, %f)\n", emitted.x, emitted.y, emitted.z);
 
     if (depth > 30) return emitted;
     
@@ -64,7 +62,7 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
             
             // 阴影检测
             if (!scene_intersect(shadowRay, t_light, id_light) || (t_light*t_light > lightDist2)) {
-                // 正确计算立体角（光源表面积投影）
+                // 计算立体角（光源表面积投影）
                 double cosThetaLight = sqrt(1.0 - (light.rad*light.rad)/lightDist2);
                 if (lightDist2 < light.rad*light.rad) cosThetaLight = 0; 
                 double omega = 2 * M_PI * (1 - cosThetaLight);
@@ -90,7 +88,7 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
             Vec u = ((fabs(w.x) > 0.1 ? Vec(0,1) : Vec(1))%w).norm();
             Vec v = w%u;
             
-            // 半球采样
+            // 余弦权重采样
             Vec d = (u*cos(r1)*r2s + v*sin(r1)*r2s + w*sqrt(1 - r2)).norm();
             return emitted + f.mult(radiance(Ray(x, d), depth, Xi));
         }
@@ -152,8 +150,6 @@ void render_image(Vec* c, int w, int h, int &totalSamples, int addSamples, const
                 static_cast<unsigned short>(omp_get_thread_num())  // 增加线程标识
             };
             
-            //Vec pixelColor = (totalSamples > 0) ? c[y*w+x] : Vec();
-            
             // 生成抗锯齿采样坐标
             const double r1 = 2 * erand48(Xi);
             const double r2 = 2 * erand48(Xi);
@@ -165,13 +161,6 @@ void render_image(Vec* c, int w, int h, int &totalSamples, int addSamples, const
                 
             // 路径追踪计算
             Vec sample = radiance(Ray(camPos + rayDir*140, rayDir.norm()), 0, Xi);
-            
-            // 增量累积（Welford算法）
-            // if (totalSamples == 0 ) pixelColor = sample;
-            // else {                    
-            //     const double n = totalSamples + 1;
-            //     pixelColor = (pixelColor * (n-1) + sample) / n;
-            // }
             
             c[y*w+x] = c[y*w+x] + sample;
             //printf("\rPixel (\t%d, \t%d): (%f, %f, %f)", x, y, pixelColor.x, pixelColor.y, pixelColor.z);
